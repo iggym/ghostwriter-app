@@ -68,7 +68,7 @@
             <div id="paywallPrompt" class="hidden mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 flex justify-between items-center">
                 <div class="flex flex-col">
                     <span class="text-xs text-amber-400 font-medium tracking-wider font-mono">PREMIUM LOCKED</span>
-                    <span class="text-xs text-zinc-400">Payload limits exceeded or feature restricted.</span>
+                    <span class="text-xs text-zinc-400">Output truncated to 250 chars. Unlock infinite length.</span>
                 </div>
                 <button onclick="document.getElementById('pricingModal').classList.remove('hidden')" class="bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-xl text-xs font-medium transition-colors">Unlock Now</button>
             </div>
@@ -114,7 +114,6 @@
     </footer>
 
     <script>
-        // Update State instantly on boot
         if(isPremium) {
             document.getElementById('tierBadge').innerText = "Premium Account";
             document.getElementById('tierBadge').className = "text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 font-mono tracking-widest uppercase";
@@ -134,19 +133,19 @@
             const text = inputField.value;
             if(!text) return alert('Input processing block empty.');
 
+            // Completely block non-premium users from generating an autotype macro
             if(!isPremium && mode === 'autotype') {
                 document.getElementById('pricingModal').classList.remove('hidden');
                 return;
             }
 
-            if(!isPremium && text.length > 250) {
-                document.getElementById('paywallPrompt').classList.remove('hidden');
-                return;
-            }
-
             const loader = document.getElementById('loader');
             const outputArea = document.getElementById('outputArea');
+            const paywallPrompt = document.getElementById('paywallPrompt');
+            
+            // Reset UI states before starting a new request
             loader.classList.remove('hidden');
+            paywallPrompt.classList.add('hidden');
 
             try {
                 const response = await fetch('https://ghostwriter-api.iggy-mw.workers.dev/api/transform', {
@@ -154,8 +153,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, mode, premiumKey: isPremium })
                 });
+                
                 const data = await response.json();
                 outputArea.innerText = data.result;
+
+                // Show the upgrade alert if a free user went past the limits, letting them see the partial result
+                if(!isPremium && text.length > 250) {
+                    paywallPrompt.classList.remove('hidden');
+                }
+
             } catch (err) {
                 outputArea.innerText = "Error parsing linguistic processing layer.";
             } finally {
